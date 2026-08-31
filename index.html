@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ניהול הוצאות וסריקת חשבוניות - v1.1</title>
+  <title>ניהול הוצאות וסריקת חשבוניות - v1.2</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
       <div>
         <div class="flex items-center gap-2">
           <h1 class="text-xl font-bold text-emerald-400">ניהול הוצאות חכם</h1>
-          <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono">v1.1</span>
+          <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono font-bold">v1.2</span>
         </div>
         <p class="text-xs text-slate-400">סריקה וסיווג חשבוניות ב-AI</p>
       </div>
@@ -70,7 +70,7 @@
       <!-- מצב טעינה -->
       <div id="loadingIndicator" class="hidden text-center py-4 space-y-2">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
-        <p id="loadingStatusText" class="text-xs text-slate-300">ה-AI מנתח את החשבונית ומסווג פריטים...</p>
+        <p class="text-xs text-slate-300">ה-AI מנתח את החשבונית ומסווג פריטים...</p>
       </div>
 
       <!-- תוצאת הניתוח -->
@@ -146,24 +146,6 @@
       });
     }
 
-    // מציאת המודל הזמין בחשבון באופן דינמי
-    async function getAvailableModel(apiKey) {
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        const data = await res.json();
-        if (data.models) {
-          const supported = data.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'));
-          // עדיפות למודלי Flash
-          const flashModel = supported.find(m => m.name.includes('flash'));
-          if (flashModel) return flashModel.name.replace('models/', '');
-          if (supported.length > 0) return supported[0].name.replace('models/', '');
-        }
-      } catch (e) {
-        console.warn('Could not auto-fetch models, using fallback', e);
-      }
-      return 'gemini-1.5-flash';
-    }
-
     async function handleImageUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -176,16 +158,12 @@
       }
 
       document.getElementById('loadingIndicator').classList.remove('hidden');
-      document.getElementById('loadingStatusText').innerText = 'בודק תאימות מודל...';
       document.getElementById('receiptResult').classList.add('hidden');
 
       try {
-        const modelName = await getAvailableModel(apiKey);
-        document.getElementById('loadingStatusText').innerText = `מנתח חשבונית (${modelName})...`;
-
         const base64Image = await fileToBase64(file);
 
-        const prompt = `נתח את החשבונית והחזר אך ורק אובייקט JSON תקין (ללא markdown, ללא קוד backticks) במבנה הבא:
+        const prompt = `אתה מנתח חשבוניות מקצועי. נתח את החשבונית המצורפת והחזר אך ורק אובייקט JSON תקין (ללא backticks וללא טקסט נוסף מסביב) במבנה הבא:
 {
   "store_name": "שם בית העסק",
   "date": "YYYY-MM-DD",
@@ -194,12 +172,15 @@
     {
       "name": "שם המוצר",
       "price": 0.00,
-      "category": "מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / שונות"
+      "category": "קטגוריה (מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / מסעדות / שונות)"
     }
   ]
 }`;
 
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
+        // שימוש במודל הרשמי והמעודכן gemini-2.0-flash
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -213,7 +194,10 @@
                   }
                 }
               ]
-            }]
+            }],
+            generationConfig: {
+              response_mime_type: "application/json"
+            }
           })
         });
 
@@ -221,13 +205,12 @@
         if (data.error) throw new Error(data.error.message || 'שגיאה בעיבוד');
 
         const rawText = data.candidates[0].content.parts[0].text;
-        const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        currentReceiptData = JSON.parse(cleanedJson);
+        currentReceiptData = JSON.parse(rawText);
 
         displayParsedReceipt(currentReceiptData);
       } catch (err) {
         console.error(err);
-        alert('שגיאה: ' + err.message);
+        alert('שגיאה בניתוח החשבונית: ' + err.message);
       } finally {
         document.getElementById('loadingIndicator').classList.add('hidden');
       }
