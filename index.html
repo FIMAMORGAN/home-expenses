@@ -3,137 +3,145 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ניהול הוצאות בית ועסק - v2.2 Turbo</title>
+  <title>ניהול הוצאות יוקרתי - v3.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Assistant', sans-serif; }
+    body { font-family: 'Rubik', sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen pb-16">
+<body class="bg-[#090D16] text-slate-100 min-h-screen pb-20">
 
   <div class="max-w-xl mx-auto p-4 space-y-5">
 
-    <!-- כותרת עליונה והגדרות -->
-    <header class="flex justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg">
+    <!-- כותרת עליונה בעיצוב יוקרתי -->
+    <header class="flex justify-between items-center bg-[#111827]/80 backdrop-blur-md p-4 rounded-3xl border border-slate-800/80 shadow-2xl">
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="text-xl font-bold text-emerald-400">ניהול הוצאות חכם</h1>
-          <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono font-bold">v2.2 Turbo ⚡</span>
+          <h1 class="text-xl font-extrabold bg-gradient-to-r from-violet-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">EXPENDITURE</h1>
+          <span class="text-[10px] bg-violet-950/80 text-violet-300 border border-violet-700/50 px-2 py-0.5 rounded-full font-mono font-bold">v3.0 Pro</span>
         </div>
-        <p class="text-xs text-slate-400">סריקה מהירה • בית ועסק • דוחות חודשיים</p>
+        <p class="text-xs text-slate-400">ניהול תקציב חודשי חכם • בית & עסק</p>
       </div>
-      <button onclick="toggleSettings()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition">
-        ⚙️ API
+      <button onclick="toggleSettings()" class="text-xs bg-[#1E293B] hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl border border-slate-700/60 shadow-inner transition">
+        ⚙️ הגדרות API
       </button>
     </header>
 
     <!-- פאנל הגדרת מפתח -->
-    <div id="settingsPanel" class="hidden bg-slate-900 p-4 rounded-2xl border border-amber-500/30 space-y-2">
-      <label class="block text-xs text-slate-300">Gemini API Key:</label>
+    <div id="settingsPanel" class="hidden bg-[#111827] p-4 rounded-3xl border border-violet-500/40 space-y-2.5 shadow-xl">
+      <label class="block text-xs font-semibold text-slate-300">מפתח Gemini API:</label>
       <div class="flex gap-2">
-        <input type="password" id="apiKeyInput" placeholder="הכנס מפתח כאן..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
-        <button onclick="saveApiKey()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm font-semibold transition">שמור</button>
+        <input type="password" id="apiKeyInput" placeholder="הדבק מפתח כאן..." class="flex-1 bg-[#090D16] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-400">
+        <button onclick="saveApiKey()" class="bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-90 px-4 py-2 rounded-xl text-sm font-bold transition shadow-md">שמור</button>
       </div>
-      <p class="text-[11px] text-slate-400">המפתח נשמר בדפדפן המקומי בלבד.</p>
+      <p class="text-[11px] text-slate-400">המפתח נשמר מאובטח בדפדפן המכשיר בלבד.</p>
     </div>
 
-    <!-- בחירת חודש + סינון תחום -->
-    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
-      <div class="flex justify-between items-center gap-2">
-        <label class="text-xs font-semibold text-slate-300">חודש דוח:</label>
-        <input type="month" id="selectedMonth" onchange="renderDashboard()" class="bg-slate-950 text-emerald-400 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-bold focus:outline-none focus:border-emerald-500">
+    <!-- פס בחירת חודש מהיר (חודשים מוצגים ככפתורים) -->
+    <div class="space-y-2">
+      <div class="flex justify-between items-center px-1">
+        <span class="text-xs font-bold text-slate-400">בחר חודש לצפייה:</span>
+        <span id="activeMonthTitle" class="text-xs font-extrabold text-cyan-400">חודש פעיל</span>
       </div>
+      <div id="monthsBar" class="flex gap-2 overflow-x-auto no-scrollbar py-1">
+        <!-- החודשים ייווצרו דינמית בריצה -->
+      </div>
+    </div>
 
-      <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold text-center">
-        <button id="scopeTab-all" onclick="setScope('all')" class="py-2 rounded-lg bg-emerald-600 text-white transition">הכל</button>
-        <button id="scopeTab-home" onclick="setScope('home')" class="py-2 rounded-lg text-slate-400 hover:text-slate-200 transition">🏠 בית</button>
-        <button id="scopeTab-business" onclick="setScope('business')" class="py-2 rounded-lg text-slate-400 hover:text-slate-200 transition">💼 עסק</button>
-      </div>
+    <!-- חוצץ בית / עסק / הכל -->
+    <div class="grid grid-cols-3 gap-1.5 bg-[#111827] p-1.5 rounded-2xl border border-slate-800/80 shadow-lg text-xs font-bold text-center">
+      <button id="scopeTab-all" onclick="setScope('all')" class="py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md transition">הכל</button>
+      <button id="scopeTab-home" onclick="setScope('home')" class="py-2.5 rounded-xl text-slate-400 hover:text-slate-200 transition">🏠 בית</button>
+      <button id="scopeTab-business" onclick="setScope('business')" class="py-2.5 rounded-xl text-slate-400 hover:text-slate-200 transition">💼 עסק</button>
     </div>
 
     <!-- כרטיסי סיכום חודשי -->
     <div class="grid grid-cols-2 gap-3">
-      <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-        <span class="text-xs text-slate-400">סה״כ הוצאות החודש</span>
-        <div id="monthTotalExpense" class="text-2xl font-bold text-emerald-400 mt-1">₪0.00</div>
+      <div class="bg-gradient-to-br from-[#111827] to-[#1a2234] p-4 rounded-3xl border border-slate-800 shadow-xl">
+        <span class="text-xs text-slate-400 font-medium">הוצאות החודש הנבחר</span>
+        <div id="monthTotalExpense" class="text-2xl font-black text-cyan-400 mt-1">₪0.00</div>
       </div>
-      <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-        <span class="text-xs text-slate-400">מספר חשבוניות בחודש</span>
-        <div id="monthReceiptsCount" class="text-2xl font-bold text-cyan-400 mt-1">0</div>
+      <div class="bg-gradient-to-br from-[#111827] to-[#1a2234] p-4 rounded-3xl border border-slate-800 shadow-xl">
+        <span class="text-xs text-slate-400 font-medium">כמות חשבוניות</span>
+        <div id="monthReceiptsCount" class="text-2xl font-black text-violet-400 mt-1">0</div>
       </div>
     </div>
 
-    <!-- אזור סריקת חשבונית -->
-    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4">
-      <h2 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
-        <span>⚡</span> סריקה מהירה של חשבונית
+    <!-- אזור סריקה מהירה -->
+    <div class="bg-[#111827] p-5 rounded-3xl border border-slate-800/80 shadow-xl space-y-4">
+      <h2 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+        <span class="text-cyan-400">⚡</span> סריקת חשבונית מהירה
       </h2>
 
-      <label class="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-emerald-500/60 rounded-xl p-6 cursor-pointer bg-slate-950/40 hover:bg-slate-950 transition group">
-        <svg class="w-8 h-8 text-slate-400 group-hover:text-emerald-400 transition mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-        </svg>
-        <span class="text-xs font-semibold text-slate-300">צלם או בחר חשבונית</span>
-        <span class="text-[10px] text-slate-500 mt-1">דחיסה מיידית ועיבוד מהיר</span>
+      <label class="flex flex-col items-center justify-center border-2 border-dashed border-slate-700/80 hover:border-cyan-400/80 rounded-2xl p-6 cursor-pointer bg-[#090D16]/50 hover:bg-[#090D16] transition group">
+        <div class="w-12 h-12 rounded-2xl bg-slate-800/80 flex items-center justify-center mb-2 group-hover:bg-cyan-950 transition border border-slate-700 group-hover:border-cyan-500/50">
+          <svg class="w-6 h-6 text-slate-400 group-hover:text-cyan-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+        </div>
+        <span class="text-xs font-bold text-slate-300">לחץ לצילום חשבונית</span>
+        <span class="text-[10px] text-slate-500 mt-0.5">דחיסה מיידית וסיווג AI אוטומטי</span>
         <input type="file" id="receiptInput" accept="image/*" capture="environment" class="hidden" onchange="handleFastImageUpload(event)">
       </label>
 
       <!-- מצב טעינה -->
       <div id="loadingIndicator" class="hidden text-center py-4 space-y-2">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
-        <p id="loadingStatusText" class="text-xs text-slate-300">מעבד תמונה וסורק ב-AI...</p>
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-400"></div>
+        <p id="loadingStatusText" class="text-xs text-slate-300">מעבד חשבונית ב-AI...</p>
       </div>
 
       <!-- תוצאת הניתוח -->
-      <div id="receiptResult" class="hidden space-y-4 pt-2 border-t border-slate-800">
+      <div id="receiptResult" class="hidden space-y-4 pt-3 border-t border-slate-800">
         
-        <div class="space-y-1">
-          <label class="text-xs font-semibold text-slate-300">ייעוד ההוצאה:</label>
+        <div class="space-y-1.5">
+          <label class="text-xs font-semibold text-slate-300">סיווג החשבונית:</label>
           <div class="grid grid-cols-2 gap-2">
-            <button type="button" id="typeBtn-home" onclick="setReceiptType('home')" class="py-2 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-900/60 text-emerald-300 transition">
+            <button type="button" id="typeBtn-home" onclick="setReceiptType('home')" class="py-2.5 rounded-xl text-xs font-bold border border-violet-500 bg-violet-950/60 text-violet-300 transition">
               🏠 הוצאת בית
             </button>
-            <button type="button" id="typeBtn-business" onclick="setReceiptType('business')" class="py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400 transition">
+            <button type="button" id="typeBtn-business" onclick="setReceiptType('business')" class="py-2.5 rounded-xl text-xs font-bold border border-slate-700 bg-[#090D16] text-slate-400 transition">
               💼 הוצאת עסק
             </button>
           </div>
         </div>
 
         <div class="flex justify-between items-center gap-2">
-          <input type="text" id="resStoreName" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-emerald-400 flex-1">
-          <input type="date" id="resDate" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300 w-32">
+          <input type="text" id="resStoreName" class="bg-[#090D16] border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-cyan-300 flex-1">
+          <input type="date" id="resDate" class="bg-[#090D16] border border-slate-700 rounded-xl px-2 py-2 text-xs text-slate-300 w-32">
         </div>
 
-        <div id="itemsContainer" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
+        <div id="itemsContainer" class="space-y-2 max-h-56 overflow-y-auto pr-1 no-scrollbar"></div>
 
         <div class="flex justify-between items-center pt-2 font-bold text-sm">
           <span>סה״כ חשבונית:</span>
-          <span id="resTotalAmount" class="text-emerald-400 text-lg">₪0.00</span>
+          <span id="resTotalAmount" class="text-cyan-400 text-xl font-black">₪0.00</span>
         </div>
 
-        <button onclick="saveCurrentReceipt()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition text-sm shadow-md">
-          שמור הוצאה
+        <button onclick="saveCurrentReceipt()" class="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-95 text-white font-bold py-3 rounded-2xl transition text-sm shadow-xl">
+          שמור הוצאה לחודש
         </button>
       </div>
     </div>
 
     <!-- גרף התפלגות קטגוריות -->
-    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-3">
-      <h2 class="font-semibold text-sm text-slate-200">התפלגות לפי קטגוריות (לחודש שנבחר)</h2>
-      <div class="w-full max-w-[260px] mx-auto">
+    <div class="bg-[#111827] p-5 rounded-3xl border border-slate-800/80 shadow-xl space-y-4">
+      <h2 class="font-bold text-sm text-slate-200">התפלגות קטגוריות בחודש הנבחר</h2>
+      <div class="w-full max-w-[240px] mx-auto">
         <canvas id="categoryChart"></canvas>
       </div>
-      <div id="categoryBreakdown" class="space-y-1.5 pt-2 text-xs"></div>
+      <div id="categoryBreakdown" class="space-y-2 pt-2 text-xs"></div>
     </div>
 
     <!-- היסטוריית חשבוניות החודש -->
-    <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-3">
+    <div class="bg-[#111827] p-5 rounded-3xl border border-slate-800/80 shadow-xl space-y-3">
       <div class="flex justify-between items-center">
-        <h2 class="font-semibold text-sm text-slate-200">פירוט חשבוניות בחודש</h2>
-        <button onclick="clearAllData()" class="text-[11px] text-red-400 hover:underline">איפוס נתונים</button>
+        <h2 class="font-bold text-sm text-slate-200">פירוט חשבוניות</h2>
+        <button onclick="clearAllData()" class="text-[11px] text-rose-400/80 hover:text-rose-300 transition">איפוס נתונים</button>
       </div>
       <div id="historyList" class="space-y-2"></div>
     </div>
@@ -144,16 +152,22 @@
     let currentReceiptData = null;
     let currentReceiptType = 'home';
     let currentFilterScope = 'all';
+    let selectedMonth = '';
     let chartInstance = null;
+
+    const hebrewMonths = [
+      'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
+      'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
+    ];
 
     window.onload = () => {
       const savedKey = localStorage.getItem('gemini_api_key');
       if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
 
       const now = new Date();
-      const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      document.getElementById('selectedMonth').value = currentMonthStr;
+      selectedMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+      renderMonthsBar();
       renderDashboard();
     };
 
@@ -174,9 +188,9 @@
       ['all', 'home', 'business'].forEach(s => {
         const btn = document.getElementById(`scopeTab-${s}`);
         if (s === scope) {
-          btn.className = 'py-2 rounded-lg bg-emerald-600 text-white transition';
+          btn.className = 'py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md transition';
         } else {
-          btn.className = 'py-2 rounded-lg text-slate-400 hover:text-slate-200 transition';
+          btn.className = 'py-2.5 rounded-xl text-slate-400 hover:text-slate-200 transition';
         }
       });
       renderDashboard();
@@ -188,12 +202,59 @@
       const bizBtn = document.getElementById('typeBtn-business');
 
       if (type === 'home') {
-        homeBtn.className = 'py-2 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-900/60 text-emerald-300 transition';
-        bizBtn.className = 'py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400 transition';
+        homeBtn.className = 'py-2.5 rounded-xl text-xs font-bold border border-violet-500 bg-violet-950/60 text-violet-300 transition';
+        bizBtn.className = 'py-2.5 rounded-xl text-xs font-bold border border-slate-700 bg-[#090D16] text-slate-400 transition';
       } else {
-        bizBtn.className = 'py-2 rounded-xl text-xs font-bold border border-cyan-500 bg-cyan-900/60 text-cyan-300 transition';
-        homeBtn.className = 'py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400 transition';
+        bizBtn.className = 'py-2.5 rounded-xl text-xs font-bold border border-cyan-500 bg-cyan-950/60 text-cyan-300 transition';
+        homeBtn.className = 'py-2.5 rounded-xl text-xs font-bold border border-slate-700 bg-[#090D16] text-slate-400 transition';
       }
+    }
+
+    function formatMonthDisplay(ym) {
+      const [year, month] = ym.split('-');
+      const mIdx = parseInt(month, 10) - 1;
+      return `${hebrewMonths[mIdx]} ${year}`;
+    }
+
+    // יצירת פס חודשים מהיר ללחיצה
+    function renderMonthsBar() {
+      const receipts = JSON.parse(localStorage.getItem('receipts_data_v2') || '[]');
+      const monthsSet = new Set();
+
+      const now = new Date();
+      const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      monthsSet.add(currentYM);
+
+      receipts.forEach(r => {
+        if (r.date && r.date.length >= 7) {
+          monthsSet.add(r.date.substring(0, 7));
+        }
+      });
+
+      const sortedMonths = Array.from(monthsSet).sort().reverse();
+      const bar = document.getElementById('monthsBar');
+      bar.innerHTML = '';
+
+      sortedMonths.forEach(ym => {
+        const isActive = ym === selectedMonth;
+        const btn = document.createElement('button');
+        btn.onclick = () => {
+          selectedMonth = ym;
+          renderMonthsBar();
+          renderDashboard();
+        };
+
+        if (isActive) {
+          btn.className = 'px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20 border border-cyan-400/40 transition-all scale-105';
+        } else {
+          btn.className = 'px-4 py-2 rounded-2xl text-xs font-semibold whitespace-nowrap bg-[#111827] hover:bg-slate-800 text-slate-300 border border-slate-800 transition';
+        }
+
+        btn.innerText = formatMonthDisplay(ym);
+        bar.appendChild(btn);
+      });
+
+      document.getElementById('activeMonthTitle').innerText = formatMonthDisplay(selectedMonth);
     }
 
     function compressImage(file, maxWidth = 1000, quality = 0.75) {
@@ -240,12 +301,12 @@
 
       document.getElementById('loadingIndicator').classList.remove('hidden');
       document.getElementById('receiptResult').classList.add('hidden');
-      document.getElementById('loadingStatusText').innerText = 'מבצע אופטימיזציה וסריקה מהירה...';
+      document.getElementById('loadingStatusText').innerText = 'סורק חשבונית במהירות...';
 
       try {
         const base64Image = await compressImage(file);
 
-        const prompt = `נתח את החשבונית והחזר אך ורק אובייקט JSON תקין (ללא שום markdown, ללא backticks) במבנה הבא:
+        const prompt = `נתח את החשבונית והחזר אך ורק אובייקט JSON תקין (ללא markdown, ללא backticks):
 {
   "store_name": "שם בית העסק",
   "date": "YYYY-MM-DD",
@@ -323,11 +384,11 @@
 
       (data.items || []).forEach((item, index) => {
         const row = document.createElement('div');
-        row.className = 'flex items-center justify-between bg-slate-950/60 p-2 rounded-lg text-xs border border-slate-800 gap-2';
+        row.className = 'flex items-center justify-between bg-[#090D16] p-2.5 rounded-xl text-xs border border-slate-800 gap-2';
         row.innerHTML = `
-          <input type="text" id="item-name-${index}" value="${item.name}" class="bg-transparent border-b border-transparent focus:border-emerald-500 focus:outline-none flex-1 text-slate-200">
-          <input type="text" id="item-cat-${index}" value="${item.category}" class="bg-slate-800 text-[10px] px-2 py-0.5 rounded text-emerald-400 border border-slate-700 w-24 text-center">
-          <input type="number" step="0.01" id="item-price-${index}" value="${parseFloat(item.price || 0)}" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 w-16 text-left font-semibold text-slate-100">
+          <input type="text" id="item-name-${index}" value="${item.name}" class="bg-transparent border-b border-transparent focus:border-cyan-400 focus:outline-none flex-1 text-slate-200">
+          <input type="text" id="item-cat-${index}" value="${item.category}" class="bg-[#1E293B] text-[10px] px-2 py-0.5 rounded-lg text-cyan-300 border border-slate-700 w-24 text-center">
+          <input type="number" step="0.01" id="item-price-${index}" value="${parseFloat(item.price || 0)}" class="bg-[#111827] border border-slate-700 rounded-lg px-2 py-1 w-16 text-left font-bold text-slate-100">
         `;
         container.appendChild(row);
       });
@@ -362,20 +423,20 @@
       receipts.unshift(newRecord);
       localStorage.setItem('receipts_data_v2', JSON.stringify(receipts));
 
-      if (date) {
-        document.getElementById('selectedMonth').value = date.substring(0, 7);
+      if (date && date.length >= 7) {
+        selectedMonth = date.substring(0, 7);
       }
 
       document.getElementById('receiptResult').classList.add('hidden');
       document.getElementById('receiptInput').value = '';
       currentReceiptData = null;
 
+      renderMonthsBar();
       renderDashboard();
       alert('החשבונית נשמרה בהצלחה!');
     }
 
     function renderDashboard() {
-      const selectedMonth = document.getElementById('selectedMonth').value;
       const receipts = JSON.parse(localStorage.getItem('receipts_data_v2') || '[]');
 
       const filtered = receipts.filter(r => {
@@ -393,7 +454,7 @@
       breakdownContainer.innerHTML = '';
 
       if (filtered.length === 0) {
-        historyContainer.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">אין הוצאות רשומות בחודש ובסינון זה.</p>';
+        historyContainer.innerHTML = '<p class="text-xs text-slate-500 text-center py-6">אין הוצאות רשומות בחודש זה.</p>';
       }
 
       filtered.forEach(r => {
@@ -406,11 +467,11 @@
 
         const isHome = r.type === 'home';
         const typeBadge = isHome 
-          ? '<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold">🏠 בית</span>' 
-          : '<span class="bg-cyan-950 text-cyan-400 border border-cyan-800 text-[10px] px-1.5 py-0.5 rounded font-bold">💼 עסק</span>';
+          ? '<span class="bg-violet-950/80 text-violet-300 border border-violet-700/50 text-[10px] px-2 py-0.5 rounded-full font-bold">🏠 בית</span>' 
+          : '<span class="bg-cyan-950/80 text-cyan-300 border border-cyan-700/50 text-[10px] px-2 py-0.5 rounded-full font-bold">💼 עסק</span>';
 
         const el = document.createElement('div');
-        el.className = 'flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs';
+        el.className = 'flex justify-between items-center bg-[#090D16] p-3.5 rounded-2xl border border-slate-800/80 text-xs shadow-sm hover:border-slate-700 transition';
         el.innerHTML = `
           <div>
             <div class="flex items-center gap-2">
@@ -420,22 +481,23 @@
             <div class="text-[10px] text-slate-400 mt-0.5">${r.date} • ${r.items ? r.items.length : 0} פריטים</div>
           </div>
           <div class="flex items-center gap-3">
-            <span class="font-bold text-emerald-400 text-sm">₪${parseFloat(r.total_amount || 0).toFixed(2)}</span>
-            <button onclick="deleteReceipt(${r.id})" class="text-slate-500 hover:text-red-400 text-xs">✕</button>
+            <span class="font-black text-cyan-400 text-sm">₪${parseFloat(r.total_amount || 0).toFixed(2)}</span>
+            <button onclick="deleteReceipt(${r.id})" class="text-slate-500 hover:text-rose-400 transition text-sm">✕</button>
           </div>
         `;
         historyContainer.appendChild(el);
       });
 
+      // פירוט קטגוריות
       Object.entries(categoryTotals)
         .sort((a, b) => b[1] - a[1])
         .forEach(([cat, sum]) => {
           const pct = monthTotal > 0 ? ((sum / monthTotal) * 100).toFixed(1) : 0;
           const row = document.createElement('div');
-          row.className = 'flex justify-between items-center text-slate-300 py-1 border-b border-slate-800/60';
+          row.className = 'flex justify-between items-center text-slate-300 py-1.5 border-b border-slate-800/40';
           row.innerHTML = `
-            <span>${cat} <span class="text-[10px] text-slate-500">(${pct}%)</span></span>
-            <span class="font-bold text-slate-100">₪${sum.toFixed(2)}</span>
+            <span class="flex items-center gap-1.5">${cat} <span class="text-[10px] text-slate-500 font-mono">(${pct}%)</span></span>
+            <span class="font-bold text-slate-100 font-mono">₪${sum.toFixed(2)}</span>
           `;
           breakdownContainer.appendChild(row);
         });
@@ -451,6 +513,7 @@
       let receipts = JSON.parse(localStorage.getItem('receipts_data_v2') || '[]');
       receipts = receipts.filter(r => r.id !== id);
       localStorage.setItem('receipts_data_v2', JSON.stringify(receipts));
+      renderMonthsBar();
       renderDashboard();
     }
 
@@ -462,7 +525,7 @@
       if (chartInstance) chartInstance.destroy();
 
       if (labels.length === 0) {
-        labels.push('אין נתונים לחודש זה');
+        labels.push('אין נתונים');
         data.push(1);
       }
 
@@ -473,10 +536,11 @@
           datasets: [{
             data: data,
             backgroundColor: [
-              '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', 
-              '#ec4899', '#f59e0b', '#f97316', '#64748b'
+              '#8B5CF6', '#06B6D4', '#3B82F6', '#EC4899', 
+              '#F59E0B', '#10B981', '#6366F1', '#64748B'
             ],
-            borderWidth: 0
+            borderWidth: 2,
+            borderColor: '#111827'
           }]
         },
         options: {
@@ -484,7 +548,7 @@
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#94a3b8', font: { size: 10, family: 'Assistant' } }
+              labels: { color: '#94A3B8', font: { size: 10, family: 'Rubik' } }
             }
           }
         }
@@ -494,6 +558,7 @@
     function clearAllData() {
       if (confirm('האם למחוק את כל הנתונים באפליקציה?')) {
         localStorage.removeItem('receipts_data_v2');
+        renderMonthsBar();
         renderDashboard();
       }
     }
