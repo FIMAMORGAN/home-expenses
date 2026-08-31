@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ניהול הוצאות וסריקת חשבוניות</title>
+  <title>ניהול הוצאות וסריקת חשבוניות - v1.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -18,11 +18,14 @@
     <!-- כותרת והגדרות API -->
     <header class="flex justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg">
       <div>
-        <h1 class="text-xl font-bold text-emerald-400">ניהול הוצאות חכם</h1>
+        <div class="flex items-center gap-2">
+          <h1 class="text-xl font-bold text-emerald-400">ניהול הוצאות חכם</h1>
+          <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono">v1.1</span>
+        </div>
         <p class="text-xs text-slate-400">סריקה וסיווג חשבוניות ב-AI</p>
       </div>
       <button onclick="toggleSettings()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition">
-        ⚙️ מפתח API
+        ⚙️ הגדרות API
       </button>
     </header>
 
@@ -67,7 +70,7 @@
       <!-- מצב טעינה -->
       <div id="loadingIndicator" class="hidden text-center py-4 space-y-2">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
-        <p class="text-xs text-slate-300">ה-AI מנתח את החשבונית ומסווג פריטים...</p>
+        <p id="loadingStatusText" class="text-xs text-slate-300">ה-AI מנתח את החשבונית ומסווג פריטים...</p>
       </div>
 
       <!-- תוצאת הניתוח -->
@@ -143,24 +146,46 @@
       });
     }
 
+    // מציאת המודל הזמין בחשבון באופן דינמי
+    async function getAvailableModel(apiKey) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const data = await res.json();
+        if (data.models) {
+          const supported = data.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'));
+          // עדיפות למודלי Flash
+          const flashModel = supported.find(m => m.name.includes('flash'));
+          if (flashModel) return flashModel.name.replace('models/', '');
+          if (supported.length > 0) return supported[0].name.replace('models/', '');
+        }
+      } catch (e) {
+        console.warn('Could not auto-fetch models, using fallback', e);
+      }
+      return 'gemini-1.5-flash';
+    }
+
     async function handleImageUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const apiKey = localStorage.getItem('gemini_api_key');
       if (!apiKey) {
-        alert('יש להגדיר קודם מפתח Gemini API בכפתור ההגדרות למעלה');
+        alert('יש להגדיר קודם מפתח Gemini API בהגדרות');
         toggleSettings();
         return;
       }
 
       document.getElementById('loadingIndicator').classList.remove('hidden');
+      document.getElementById('loadingStatusText').innerText = 'בודק תאימות מודל...';
       document.getElementById('receiptResult').classList.add('hidden');
 
       try {
+        const modelName = await getAvailableModel(apiKey);
+        document.getElementById('loadingStatusText').innerText = `מנתח חשבונית (${modelName})...`;
+
         const base64Image = await fileToBase64(file);
 
-        const prompt = `אתה מנתח חשבוניות מקצועי. חלץ מהתמונה את הנתונים והחזר אובייקט JSON תקין בלבד (ללא שום תוספת טקסט מסביב) במבנה הבא:
+        const prompt = `נתח את החשבונית והחזר אך ורק אובייקט JSON תקין (ללא markdown, ללא קוד backticks) במבנה הבא:
 {
   "store_name": "שם בית העסק",
   "date": "YYYY-MM-DD",
@@ -169,61 +194,40 @@
     {
       "name": "שם המוצר",
       "price": 0.00,
-      "category": "קטגוריה (מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / מסעדות / שונות)"
+      "category": "מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / שונות"
     }
   ]
 }`;
 
-        const payload = {
-          contents: [{
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: file.type || "image/jpeg",
-                  data: base64Image
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                {
+                  inline_data: {
+                    mime_type: file.type || "image/jpeg",
+                    data: base64Image
+                  }
                 }
-              }
-            ]
-          }]
-        };
+              ]
+            }]
+          })
+        });
 
-        // רשימת מודלים נתמכים לניסיון בסדר עדיפויות
-        const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
-        let successData = null;
-        let lastError = null;
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message || 'שגיאה בעיבוד');
 
-        for (const model of models) {
-          try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-
-            const data = await res.json();
-            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-              successData = data.candidates[0].content.parts[0].text;
-              break;
-            } else if (data.error) {
-              lastError = data.error.message;
-            }
-          } catch (e) {
-            lastError = e.message;
-          }
-        }
-
-        if (!successData) {
-          throw new Error(lastError || 'לא התקבלה תשובה תקינה מה-API');
-        }
-
-        const cleanedJson = successData.replace(/```json/g, '').replace(/```/g, '').trim();
+        const rawText = data.candidates[0].content.parts[0].text;
+        const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         currentReceiptData = JSON.parse(cleanedJson);
 
         displayParsedReceipt(currentReceiptData);
       } catch (err) {
         console.error(err);
-        alert('שגיאה בעיבוד החשבונית: ' + err.message);
+        alert('שגיאה: ' + err.message);
       } finally {
         document.getElementById('loadingIndicator').classList.add('hidden');
       }
@@ -269,7 +273,6 @@
 
     function renderHistoryAndStats() {
       const receipts = JSON.parse(localStorage.getItem('receipts_data') || '[]');
-      
       let grandTotal = 0;
       const categoryTotals = {};
 
