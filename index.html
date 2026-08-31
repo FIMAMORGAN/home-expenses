@@ -160,7 +160,7 @@
       try {
         const base64Image = await fileToBase64(file);
 
-        const prompt = `אתה מנתח חשבוניות מקצועי. חלץ מהתמונה את הנתונים והחזר JSON בלבד במבנה הבא:
+        const prompt = `אתה מנתח חשבוניות מקצועי. חלץ מהתמונה את הנתונים והחזר אובייקט JSON תקין בלבד (ללא שום תוספת טקסט מסביב) במבנה הבא:
 {
   "store_name": "שם בית העסק",
   "date": "YYYY-MM-DD",
@@ -169,43 +169,56 @@
     {
       "name": "שם המוצר",
       "price": 0.00,
-      "category": "קטגוריה (מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / שונות)"
+      "category": "קטגוריה (מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / מסעדות / שונות)"
     }
   ]
 }`;
 
-        // תמיכה ב-gemini-2.5-flash עם fallback ל-gemini-1.5-flash-latest
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: file.type || "image/jpeg",
-                    data: base64Image
-                  }
+        const payload = {
+          contents: [{
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: file.type || "image/jpeg",
+                  data: base64Image
                 }
-              ]
-            }],
-            generationConfig: {
-              response_mime_type: "application/json"
-            }
-          })
-        });
+              }
+            ]
+          }]
+        };
 
-        const data = await response.json();
-        
-        if (data.error) {
-          throw new Error(data.error.message || 'שגיאה בניתוח החשבונית');
+        // רשימת מודלים נתמכים לניסיון בסדר עדיפויות
+        const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+        let successData = null;
+        let lastError = null;
+
+        for (const model of models) {
+          try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+              successData = data.candidates[0].content.parts[0].text;
+              break;
+            } else if (data.error) {
+              lastError = data.error.message;
+            }
+          } catch (e) {
+            lastError = e.message;
+          }
         }
 
-        const rawText = data.candidates[0].content.parts[0].text;
-        currentReceiptData = JSON.parse(rawText);
+        if (!successData) {
+          throw new Error(lastError || 'לא התקבלה תשובה תקינה מה-API');
+        }
+
+        const cleanedJson = successData.replace(/```json/g, '').replace(/```/g, '').trim();
+        currentReceiptData = JSON.parse(cleanedJson);
 
         displayParsedReceipt(currentReceiptData);
       } catch (err) {
