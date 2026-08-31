@@ -3,29 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ניהול הוצאות וסריקת חשבוניות - v1.3</title>
+  <title>ניהול הוצאות בית ועסק - v2.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Assistant', sans-serif; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen pb-12">
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-16">
 
-  <div class="max-w-xl mx-auto p-4 space-y-6">
+  <div class="max-w-xl mx-auto p-4 space-y-5">
 
-    <!-- כותרת והגדרות API -->
+    <!-- כותרת עליונה והגדרות -->
     <header class="flex justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-lg">
       <div>
         <div class="flex items-center gap-2">
           <h1 class="text-xl font-bold text-emerald-400">ניהול הוצאות חכם</h1>
-          <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono font-bold">v1.3</span>
+          <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono font-bold">v2.0</span>
         </div>
-        <p class="text-xs text-slate-400">סריקה וסיווג חשבוניות ב-AI</p>
+        <p class="text-xs text-slate-400">הפרדה מלאה בין בית לעסק • דוחות חודשיים</p>
       </div>
       <button onclick="toggleSettings()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition">
-        ⚙️ הגדרות API
+        ⚙️ API
       </button>
     </header>
 
@@ -33,25 +33,40 @@
     <div id="settingsPanel" class="hidden bg-slate-900 p-4 rounded-2xl border border-amber-500/30 space-y-2">
       <label class="block text-xs text-slate-300">Gemini API Key:</label>
       <div class="flex gap-2">
-        <input type="password" id="apiKeyInput" placeholder="הכנס את המפתח כאן..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
+        <input type="password" id="apiKeyInput" placeholder="הכנס מפתח כאן..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500">
         <button onclick="saveApiKey()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm font-semibold transition">שמור</button>
       </div>
-      <p class="text-[11px] text-slate-400">המפתח נשמר בדפדפן בלבד (LocalStorage).</p>
+      <p class="text-[11px] text-slate-400">המפתח נשמר בדפדפן המקומי בלבד.</p>
     </div>
 
-    <!-- כרטיס סיכום מהיר -->
+    <!-- בחירת חודש + סינון תחום (בית / עסק / הכל) -->
+    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3">
+      <div class="flex justify-between items-center gap-2">
+        <label class="text-xs font-semibold text-slate-300">חודש דוח:</label>
+        <input type="month" id="selectedMonth" onchange="renderDashboard()" class="bg-slate-950 text-emerald-400 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-bold focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <!-- חוצץ בית / עסק -->
+      <div class="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold text-center">
+        <button id="scopeTab-all" onclick="setScope('all')" class="py-2 rounded-lg bg-emerald-600 text-white transition">הכל</button>
+        <button id="scopeTab-home" onclick="setScope('home')" class="py-2 rounded-lg text-slate-400 hover:text-slate-200 transition">🏠 בית</button>
+        <button id="scopeTab-business" onclick="setScope('business')" class="py-2 rounded-lg text-slate-400 hover:text-slate-200 transition">💼 עסק</button>
+      </div>
+    </div>
+
+    <!-- כרטיסי סיכום חודשי -->
     <div class="grid grid-cols-2 gap-3">
       <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-        <span class="text-xs text-slate-400">סה״כ הוצאות שמורות</span>
-        <div id="totalExpenses" class="text-2xl font-bold text-emerald-400 mt-1">₪0.00</div>
+        <span class="text-xs text-slate-400" id="summaryTotalLabel">סה״כ הוצאות החודש</span>
+        <div id="monthTotalExpense" class="text-2xl font-bold text-emerald-400 mt-1">₪0.00</div>
       </div>
       <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-        <span class="text-xs text-slate-400">מספר חשבוניות</span>
-        <div id="totalReceiptsCount" class="text-2xl font-bold text-cyan-400 mt-1">0</div>
+        <span class="text-xs text-slate-400">מספר חשבוניות בחודש</span>
+        <div id="monthReceiptsCount" class="text-2xl font-bold text-cyan-400 mt-1">0</div>
       </div>
     </div>
 
-    <!-- אזור סריקה / צילום חשבונית -->
+    <!-- כפתור ואזור סריקת חשבונית -->
     <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4">
       <h2 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
         <span>📸</span> סריקת חשבונית חדשה
@@ -62,22 +77,36 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
         </svg>
-        <span class="text-xs font-semibold text-slate-300">לחץ לצילום או בחירת קובץ חשבונית</span>
-        <span class="text-[10px] text-slate-500 mt-1">תומך ב-JPG, PNG, HEIC</span>
+        <span class="text-xs font-semibold text-slate-300">צלם או בחר חשבונית</span>
+        <span class="text-[10px] text-slate-500 mt-1">המערכת תחלץ פריטים ותציע סיווג</span>
         <input type="file" id="receiptInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
       </label>
 
       <!-- מצב טעינה -->
       <div id="loadingIndicator" class="hidden text-center py-4 space-y-2">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
-        <p id="loadingStatusText" class="text-xs text-slate-300">ה-AI מנתח את החשבונית ומסווג פריטים...</p>
+        <p class="text-xs text-slate-300">ה-AI מנתח את החשבונית ומחלץ פריטים...</p>
       </div>
 
-      <!-- תוצאת הניתוח -->
-      <div id="receiptResult" class="hidden space-y-3 pt-2">
-        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-          <h3 class="font-bold text-sm text-emerald-400" id="resStoreName">-</h3>
-          <span class="text-xs text-slate-400" id="resDate">-</span>
+      <!-- תוצאת הניתוח ועריכה לפני שמירה -->
+      <div id="receiptResult" class="hidden space-y-4 pt-2 border-t border-slate-800">
+        
+        <!-- בחירת סוג הוצאה: בית או עסק -->
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">ייעוד ההוצאה:</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="typeBtn-home" onclick="setReceiptType('home')" class="py-2 rounded-xl text-xs font-bold border border-slate-700 bg-emerald-900/60 text-emerald-300 border-emerald-500 transition">
+              🏠 הוצאת בית
+            </button>
+            <button type="button" id="typeBtn-business" onclick="setReceiptType('business')" class="py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400 transition">
+              💼 הוצאת עסק
+            </button>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center gap-2">
+          <input type="text" id="resStoreName" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-emerald-400 flex-1">
+          <input type="date" id="resDate" class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300 w-32">
         </div>
 
         <div id="itemsContainer" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
@@ -88,45 +117,51 @@
         </div>
 
         <button onclick="saveCurrentReceipt()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition text-sm shadow-md">
-          שמור הוצאה במסד הנתונים
+          שמור הוצאה לחודש הנבחר
         </button>
       </div>
     </div>
 
     <!-- גרף התפלגות קטגוריות -->
     <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-3">
-      <h2 class="font-semibold text-sm text-slate-200">התפלגות הוצאות לפי קטגוריה</h2>
+      <h2 class="font-semibold text-sm text-slate-200">התפלגות לפי קטגוריות (לחודש שנבחר)</h2>
       <div class="w-full max-w-[260px] mx-auto">
         <canvas id="categoryChart"></canvas>
       </div>
+      <div id="categoryBreakdown" class="space-y-1.5 pt-2 text-xs"></div>
     </div>
 
-    <!-- היסטוריית חשבוניות אחרונות -->
+    <!-- היסטוריית חשבוניות החודש -->
     <div class="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-3">
       <div class="flex justify-between items-center">
-        <h2 class="font-semibold text-sm text-slate-200">היסטוריית חשבוניות</h2>
-        <button onclick="clearAllData()" class="text-[11px] text-red-400 hover:underline">מחק הכל</button>
+        <h2 class="font-semibold text-sm text-slate-200">פירוט חשבוניות בחודש</h2>
+        <button onclick="clearAllData()" class="text-[11px] text-red-400 hover:underline">איפוס נתונים</button>
       </div>
-      <div id="historyList" class="space-y-2">
-        <p class="text-xs text-slate-500 text-center py-4">אין חשבוניות שמורות עדיין.</p>
-      </div>
+      <div id="historyList" class="space-y-2"></div>
     </div>
 
   </div>
 
   <script>
     let currentReceiptData = null;
+    let currentReceiptType = 'home'; // 'home' | 'business'
+    let currentFilterScope = 'all';  // 'all' | 'home' | 'business'
     let chartInstance = null;
 
     window.onload = () => {
       const savedKey = localStorage.getItem('gemini_api_key');
       if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
-      renderHistoryAndStats();
+
+      // ברירת מחדל: חודש נוכחי לפי השעון
+      const now = new Date();
+      const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      document.getElementById('selectedMonth').value = currentMonthStr;
+
+      renderDashboard();
     };
 
     function toggleSettings() {
-      const panel = document.getElementById('settingsPanel');
-      panel.classList.toggle('hidden');
+      document.getElementById('settingsPanel').classList.toggle('hidden');
     }
 
     function saveApiKey() {
@@ -135,6 +170,33 @@
       localStorage.setItem('gemini_api_key', key);
       alert('המפתח נשמר בהצלחה!');
       toggleSettings();
+    }
+
+    function setScope(scope) {
+      currentFilterScope = scope;
+      ['all', 'home', 'business'].forEach(s => {
+        const btn = document.getElementById(`scopeTab-${s}`);
+        if (s === scope) {
+          btn.className = 'py-2 rounded-lg bg-emerald-600 text-white transition';
+        } else {
+          btn.className = 'py-2 rounded-lg text-slate-400 hover:text-slate-200 transition';
+        }
+      });
+      renderDashboard();
+    }
+
+    function setReceiptType(type) {
+      currentReceiptType = type;
+      const homeBtn = document.getElementById('typeBtn-home');
+      const bizBtn = document.getElementById('typeBtn-business');
+
+      if (type === 'home') {
+        homeBtn.className = 'py-2 rounded-xl text-xs font-bold border border-emerald-500 bg-emerald-900/60 text-emerald-300 transition';
+        bizBtn.className = 'py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400 transition';
+      } else {
+        bizBtn.className = 'py-2 rounded-xl text-xs font-bold border border-cyan-500 bg-cyan-900/60 text-cyan-300 transition';
+        homeBtn.className = 'py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400 transition';
+      }
     }
 
     function fileToBase64(file) {
@@ -159,21 +221,21 @@
 
       document.getElementById('loadingIndicator').classList.remove('hidden');
       document.getElementById('receiptResult').classList.add('hidden');
-      document.getElementById('loadingStatusText').innerText = 'מנתח חשבונית ב-AI...';
 
       try {
         const base64Image = await fileToBase64(file);
 
-        const prompt = `נתח את החשבונית והחזר אך ורק אובייקט JSON תקין (ללא markdown, ללא קוד backticks) במבנה הבא:
+        const prompt = `נתח את תמונת החשבונית והחזר אך ורק אובייקט JSON תקין (ללא שום markdown, ללא backticks) במבנה הבא:
 {
   "store_name": "שם בית העסק",
   "date": "YYYY-MM-DD",
+  "suggested_type": "home או business",
   "total_amount": 0.00,
   "items": [
     {
       "name": "שם המוצר",
       "price": 0.00,
-      "category": "מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / שונות"
+      "category": "מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / דלק ונסיעות / משרד ומחשוב / שיווק ופרסום / שונות"
     }
   ]
 }`;
@@ -192,10 +254,9 @@
           }]
         };
 
-        // מודלים עדכניים לפי הנחיית גוגל
         const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite'];
-        let successText = null;
-        let lastErrorMsg = '';
+        let rawText = null;
+        let lastError = null;
 
         for (const model of candidateModels) {
           try {
@@ -204,24 +265,21 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
             });
-
             const data = await res.json();
             if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-              successText = data.candidates[0].content.parts[0].text;
+              rawText = data.candidates[0].content.parts[0].text;
               break;
             } else if (data.error) {
-              lastErrorMsg = data.error.message;
+              lastError = data.error.message;
             }
           } catch (e) {
-            lastErrorMsg = e.message;
+            lastError = e.message;
           }
         }
 
-        if (!successText) {
-          throw new Error(lastErrorMsg || 'לא התקבלה תשובה תקינה');
-        }
+        if (!rawText) throw new Error(lastError || 'שגיאה בעיבוד');
 
-        const cleanedJson = successText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
         currentReceiptData = JSON.parse(cleanedJson);
 
         displayParsedReceipt(currentReceiptData);
@@ -234,20 +292,23 @@
     }
 
     function displayParsedReceipt(data) {
-      document.getElementById('resStoreName').innerText = data.store_name || 'בית עסק';
-      document.getElementById('resDate').innerText = data.date || new Date().toISOString().split('T')[0];
+      document.getElementById('resStoreName').value = data.store_name || 'בית עסק';
+      document.getElementById('resDate').value = data.date || new Date().toISOString().split('T')[0];
       document.getElementById('resTotalAmount').innerText = `₪${parseFloat(data.total_amount || 0).toFixed(2)}`;
+
+      // סיווג מוצע
+      setReceiptType(data.suggested_type === 'business' ? 'business' : 'home');
 
       const container = document.getElementById('itemsContainer');
       container.innerHTML = '';
 
-      (data.items || []).forEach((item) => {
+      (data.items || []).forEach((item, index) => {
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between bg-slate-950/60 p-2 rounded-lg text-xs border border-slate-800 gap-2';
         row.innerHTML = `
-          <input type="text" value="${item.name}" class="bg-transparent border-b border-transparent focus:border-emerald-500 focus:outline-none flex-1 text-slate-200">
-          <input type="text" value="${item.category}" class="bg-slate-800 text-[10px] px-2 py-0.5 rounded text-emerald-400 border border-slate-700 w-24 text-center">
-          <span class="font-semibold text-slate-100">₪${parseFloat(item.price || 0).toFixed(2)}</span>
+          <input type="text" id="item-name-${index}" value="${item.name}" class="bg-transparent border-b border-transparent focus:border-emerald-500 focus:outline-none flex-1 text-slate-200">
+          <input type="text" id="item-cat-${index}" value="${item.category}" class="bg-slate-800 text-[10px] px-2 py-0.5 rounded text-emerald-400 border border-slate-700 w-24 text-center">
+          <input type="number" step="0.01" id="item-price-${index}" value="${parseFloat(item.price || 0)}" class="bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 w-16 text-left font-semibold text-slate-100">
         `;
         container.appendChild(row);
       });
@@ -258,55 +319,124 @@
     function saveCurrentReceipt() {
       if (!currentReceiptData) return;
 
-      const receipts = JSON.parse(localStorage.getItem('receipts_data') || '[]');
-      currentReceiptData.id = Date.now();
-      receipts.unshift(currentReceiptData);
-      localStorage.setItem('receipts_data', JSON.stringify(receipts));
+      const store = document.getElementById('resStoreName').value.trim();
+      const date = document.getElementById('resDate').value;
+      
+      const items = (currentReceiptData.items || []).map((_, i) => ({
+        name: document.getElementById(`item-name-${i}`).value,
+        category: document.getElementById(`item-cat-${i}`).value,
+        price: parseFloat(document.getElementById(`item-price-${i}`).value || 0)
+      }));
+
+      const total = items.reduce((acc, cur) => acc + cur.price, 0);
+
+      const newRecord = {
+        id: Date.now(),
+        store_name: store,
+        date: date,
+        type: currentReceiptType, // 'home' | 'business'
+        total_amount: total > 0 ? total : parseFloat(currentReceiptData.total_amount || 0),
+        items: items
+      };
+
+      const receipts = JSON.parse(localStorage.getItem('receipts_data_v2') || '[]');
+      receipts.unshift(newRecord);
+      localStorage.setItem('receipts_data_v2', JSON.stringify(receipts));
+
+      // עדכון חודש מוצג לחודש של החשבונית
+      if (date) {
+        document.getElementById('selectedMonth').value = date.substring(0, 7);
+      }
 
       document.getElementById('receiptResult').classList.add('hidden');
       document.getElementById('receiptInput').value = '';
       currentReceiptData = null;
 
-      renderHistoryAndStats();
+      renderDashboard();
       alert('החשבונית נשמרה בהצלחה!');
     }
 
-    function renderHistoryAndStats() {
-      const receipts = JSON.parse(localStorage.getItem('receipts_data') || '[]');
-      let grandTotal = 0;
+    function renderDashboard() {
+      const selectedMonth = document.getElementById('selectedMonth').value;
+      const receipts = JSON.parse(localStorage.getItem('receipts_data_v2') || '[]');
+
+      // סינון לפי חודש ותחום (בית / עסק / הכל)
+      const filtered = receipts.filter(r => {
+        const matchesMonth = r.date && r.date.startsWith(selectedMonth);
+        const matchesScope = (currentFilterScope === 'all') || (r.type === currentFilterScope);
+        return matchesMonth && matchesScope;
+      });
+
+      let monthTotal = 0;
       const categoryTotals = {};
 
       const historyContainer = document.getElementById('historyList');
+      const breakdownContainer = document.getElementById('categoryBreakdown');
       historyContainer.innerHTML = '';
+      breakdownContainer.innerHTML = '';
 
-      if (receipts.length === 0) {
-        historyContainer.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">אין חשבוניות שמורות עדיין.</p>';
+      if (filtered.length === 0) {
+        historyContainer.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">אין הוצאות רשומות בחודש ובסינון זה.</p>';
       }
 
-      receipts.forEach(r => {
-        grandTotal += parseFloat(r.total_amount || 0);
+      filtered.forEach(r => {
+        monthTotal += parseFloat(r.total_amount || 0);
 
         (r.items || []).forEach(item => {
           const cat = item.category || 'שונות';
           categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(item.price || 0);
         });
 
+        // יצירת פריט היסטוריה
+        const isHome = r.type === 'home';
+        const typeBadge = isHome 
+          ? '<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold">🏠 בית</span>' 
+          : '<span class="bg-cyan-950 text-cyan-400 border border-cyan-800 text-[10px] px-1.5 py-0.5 rounded font-bold">💼 עסק</span>';
+
         const el = document.createElement('div');
         el.className = 'flex justify-between items-center bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs';
         el.innerHTML = `
           <div>
-            <div class="font-bold text-slate-200">${r.store_name}</div>
-            <div class="text-[10px] text-slate-400">${r.date} • ${r.items ? r.items.length : 0} פריטים</div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-200">${r.store_name}</span>
+              ${typeBadge}
+            </div>
+            <div class="text-[10px] text-slate-400 mt-0.5">${r.date} • ${r.items ? r.items.length : 0} פריטים</div>
           </div>
-          <div class="font-bold text-emerald-400">₪${parseFloat(r.total_amount || 0).toFixed(2)}</div>
+          <div class="flex items-center gap-3">
+            <span class="font-bold text-emerald-400 text-sm">₪${parseFloat(r.total_amount || 0).toFixed(2)}</span>
+            <button onclick="deleteReceipt(${r.id})" class="text-slate-500 hover:text-red-400 text-xs">✕</button>
+          </div>
         `;
         historyContainer.appendChild(el);
       });
 
-      document.getElementById('totalExpenses').innerText = `₪${grandTotal.toFixed(2)}`;
-      document.getElementById('totalReceiptsCount').innerText = receipts.length;
+      // הצגת פירוט קטגוריות באחוזים ושקלים
+      Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([cat, sum]) => {
+          const pct = monthTotal > 0 ? ((sum / monthTotal) * 100).toFixed(1) : 0;
+          const row = document.createElement('div');
+          row.className = 'flex justify-between items-center text-slate-300 py-1 border-b border-slate-800/60';
+          row.innerHTML = `
+            <span>${cat} <span class="text-[10px] text-slate-500">(${pct}%)</span></span>
+            <span class="font-bold text-slate-100">₪${sum.toFixed(2)}</span>
+          `;
+          breakdownContainer.appendChild(row);
+        });
+
+      document.getElementById('monthTotalExpense').innerText = `₪${monthTotal.toFixed(2)}`;
+      document.getElementById('monthReceiptsCount').innerText = filtered.length;
 
       updateChart(categoryTotals);
+    }
+
+    function deleteReceipt(id) {
+      if (!confirm('האם למחוק חשבונית זו?')) return;
+      let receipts = JSON.parse(localStorage.getItem('receipts_data_v2') || '[]');
+      receipts = receipts.filter(r => r.id !== id);
+      localStorage.setItem('receipts_data_v2', JSON.stringify(receipts));
+      renderDashboard();
     }
 
     function updateChart(categoryData) {
@@ -317,7 +447,7 @@
       if (chartInstance) chartInstance.destroy();
 
       if (labels.length === 0) {
-        labels.push('אין נתונים');
+        labels.push('אין נתונים לחודש זה');
         data.push(1);
       }
 
@@ -329,7 +459,7 @@
             data: data,
             backgroundColor: [
               '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', 
-              '#ec4899', '#f59e0b', '#64748b'
+              '#ec4899', '#f59e0b', '#f97316', '#64748b'
             ],
             borderWidth: 0
           }]
@@ -347,9 +477,9 @@
     }
 
     function clearAllData() {
-      if (confirm('האם למחוק את כל נתוני ההוצאות?')) {
-        localStorage.removeItem('receipts_data');
-        renderHistoryAndStats();
+      if (confirm('האם למחוק את כל הנתונים באפליקציה?')) {
+        localStorage.removeItem('receipts_data_v2');
+        renderDashboard();
       }
     }
   </script>
