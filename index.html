@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ניהול הוצאות וסריקת חשבוניות - v1.2</title>
+  <title>ניהול הוצאות וסריקת חשבוניות - v1.3</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
       <div>
         <div class="flex items-center gap-2">
           <h1 class="text-xl font-bold text-emerald-400">ניהול הוצאות חכם</h1>
-          <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono font-bold">v1.2</span>
+          <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono font-bold">v1.3</span>
         </div>
         <p class="text-xs text-slate-400">סריקה וסיווג חשבוניות ב-AI</p>
       </div>
@@ -70,7 +70,7 @@
       <!-- מצב טעינה -->
       <div id="loadingIndicator" class="hidden text-center py-4 space-y-2">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500"></div>
-        <p class="text-xs text-slate-300">ה-AI מנתח את החשבונית ומסווג פריטים...</p>
+        <p id="loadingStatusText" class="text-xs text-slate-300">ה-AI מנתח את החשבונית ומסווג פריטים...</p>
       </div>
 
       <!-- תוצאת הניתוח -->
@@ -159,11 +159,12 @@
 
       document.getElementById('loadingIndicator').classList.remove('hidden');
       document.getElementById('receiptResult').classList.add('hidden');
+      document.getElementById('loadingStatusText').innerText = 'מנתח חשבונית ב-AI...';
 
       try {
         const base64Image = await fileToBase64(file);
 
-        const prompt = `אתה מנתח חשבוניות מקצועי. נתח את החשבונית המצורפת והחזר אך ורק אובייקט JSON תקין (ללא backticks וללא טקסט נוסף מסביב) במבנה הבא:
+        const prompt = `נתח את החשבונית והחזר אך ורק אובייקט JSON תקין (ללא markdown, ללא קוד backticks) במבנה הבא:
 {
   "store_name": "שם בית העסק",
   "date": "YYYY-MM-DD",
@@ -172,40 +173,56 @@
     {
       "name": "שם המוצר",
       "price": 0.00,
-      "category": "קטגוריה (מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / מסעדות / שונות)"
+      "category": "מזון וסופר / פארם והיגיינה / ביגוד / תחזוקת בית / פנאי / שונות"
     }
   ]
 }`;
 
-        // שימוש במודל הרשמי והמעודכן gemini-2.0-flash
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: file.type || "image/jpeg",
-                    data: base64Image
-                  }
+        const payload = {
+          contents: [{
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: file.type || "image/jpeg",
+                  data: base64Image
                 }
-              ]
-            }],
-            generationConfig: {
-              response_mime_type: "application/json"
+              }
+            ]
+          }]
+        };
+
+        // מודלים עדכניים לפי הנחיית גוגל
+        const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+        let successText = null;
+        let lastErrorMsg = '';
+
+        for (const model of candidateModels) {
+          try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+              successText = data.candidates[0].content.parts[0].text;
+              break;
+            } else if (data.error) {
+              lastErrorMsg = data.error.message;
             }
-          })
-        });
+          } catch (e) {
+            lastErrorMsg = e.message;
+          }
+        }
 
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message || 'שגיאה בעיבוד');
+        if (!successText) {
+          throw new Error(lastErrorMsg || 'לא התקבלה תשובה תקינה');
+        }
 
-        const rawText = data.candidates[0].content.parts[0].text;
-        currentReceiptData = JSON.parse(rawText);
+        const cleanedJson = successText.replace(/```json/g, '').replace(/```/g, '').trim();
+        currentReceiptData = JSON.parse(cleanedJson);
 
         displayParsedReceipt(currentReceiptData);
       } catch (err) {
